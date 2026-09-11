@@ -11,22 +11,24 @@
             align-items: center; 
             justify-content: center; 
             height: 100vh; 
-            background: #4A752C; 
+            background: #0B0B1E; /* Deep cosmic purple space background */
             color: #fff; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0; 
             user-select: none;
+            overflow: hidden;
         }
         #game-container {
             position: relative;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(122, 60, 255, 0.3);
+            border-radius: 12px;
             overflow: hidden;
+            border: 2px solid #3d3b75;
         }
         #top-bar {
             width: 560px;
             height: 50px;
-            background: #4A752C;
+            background: #141432;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -34,6 +36,7 @@
             box-sizing: border-box;
             font-size: 24px;
             font-weight: bold;
+            border-bottom: 2px solid #23234b;
         }
         .ui-element {
             display: flex;
@@ -41,7 +44,7 @@
             gap: 10px;
         }
         canvas { 
-            background: #A2D149; 
+            background: #050510; 
             display: block;
         }
         #ui-overlay {
@@ -50,12 +53,12 @@
             left: 0;
             width: 560px;
             height: 560px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(5, 5, 15, 0.85);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
             transition: opacity 0.3s ease;
         }
         #ui-overlay.hidden {
@@ -64,16 +67,17 @@
         #ui-overlay h1 {
             font-size: 40px;
             margin: 0 0 10px 0;
-            color: #fff;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            color: #00E5FF;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
             text-align: center;
         }
         #ui-overlay p {
             font-size: 20px;
             margin: 0 0 30px 0;
+            color: #a0a0d0;
         }
         #play-btn {
-            background: #1565C0;
+            background: #7C4DFF;
             color: white;
             border: none;
             padding: 12px 35px;
@@ -81,11 +85,12 @@
             font-weight: bold;
             border-radius: 25px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 0 15px rgba(124, 77, 255, 0.4);
             transition: all 0.2s ease;
         }
         #play-btn:hover {
-            background: #1E88E5;
+            background: #9E7CC1;
+            box-shadow: 0 0 25px rgba(124, 77, 255, 0.8);
             transform: translateY(-2px);
         }
         #play-btn:active {
@@ -97,7 +102,7 @@
 
     <div id="game-container">
         <div id="top-bar">
-            <div class="ui-element">🍎 <span id="score">0</span></div>
+            <div class="ui-element">🚀 <span id="score">0</span></div>
             <div class="ui-element">🏆 <span id="highscore">0</span></div>
         </div>
 
@@ -105,7 +110,7 @@
 
         <div id="ui-overlay">
             <h1 id="menu-title">290045's Snake Game</h1>
-            <p id="menu-text">Press PLAY or Spacebar</p>
+            <p id="menu-text">Press PLAY, Spacebar, or Enter</p>
             <button id="play-btn">PLAY</button>
         </div>
     </div>
@@ -125,21 +130,32 @@ const tileCount = canvas.width / gridSize;
 
 let snake = [];
 let food = { x: 0, y: 0 };
-let dx = 1;
-let dy = 0;
-let nextDx = 1;
-let nextDy = 0;
-let score = 0;
-let highscore = 0;
-let gameInterval;
+let dx = 1, dy = 0;
+let nextDx = 1, nextDy = 0;
+let score = 0, highscore = 0;
 let isPlaying = false;
 
-// Setup initial layout smoothly without crashing active states
+// Logic timers & Smooth Animation states
+let lastLogicTime = 0;
+const logicInterval = 140; // Logic speed (ms per step)
+let stars = [];
+
+// Generate stars for the space background
+for(let i=0; i<40; i++) {
+    stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+        alpha: Math.random()
+    });
+}
+
 resetGameData();
 generateFood();
-draw();
 
-// Connect button click event properly
+// Start standard Animation Frame handling loop (super smooth drawing)
+requestAnimationFrame(gameLoop);
+
 playBtn.addEventListener("click", handleMenuClick);
 
 function resetGameData() {
@@ -159,28 +175,43 @@ function handleMenuClick() {
     resetGameData();
     generateFood();
     isPlaying = true;
-    gameInterval = setInterval(update, 130); 
+    lastLogicTime = performance.now();
 }
 
-function update() {
+// Master loop running at monitor refresh rate (60fps/144fps+)
+function gameLoop(currentTime) {
+    requestAnimationFrame(gameLoop);
+
+    if (isPlaying) {
+        const elapsed = currentTime - lastLogicTime;
+        if (elapsed >= logicInterval) {
+            updateLogic();
+            lastLogicTime = currentTime - (elapsed % logicInterval);
+        }
+        // Pass progressive fraction calculation to draw step for liquid smoothing
+        const interpolationProgress = (currentTime - lastLogicTime) / logicInterval;
+        draw(interpolationProgress);
+    } else {
+        draw(0);
+    }
+}
+
+function updateLogic() {
     dx = nextDx;
     dy = nextDy;
 
     const head = { x: snake[0].x + dx, y: snake[0].y + dy };
     
-    // Check Wall Collisions
     if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
         return gameOver();
     }
 
-    // Check Self Collisions
     for (let cell of snake) {
         if (head.x === cell.x && head.y === cell.y) return gameOver();
     }
 
     snake.unshift(head);
 
-    // Check Food Collision
     if (head.x === food.x && head.y === food.y) {
         score += 1; 
         scoreElement.innerText = score;
@@ -192,55 +223,89 @@ function update() {
     } else {
         snake.pop(); 
     }
-
-    draw();
 }
 
-function drawGridBackground() {
-    for (let r = 0; r < tileCount; r++) {
-        for (let c = 0; c < tileCount; c++) {
-            ctx.fillStyle = (r + c) % 2 === 0 ? "#AAD751" : "#A2D149";
-            ctx.fillRect(c * gridSize, r * gridSize, gridSize, gridSize);
-        }
+function drawBackground() {
+    // Deep Space canvas background
+    ctx.fillStyle = "#050512";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Render shimmering stars
+    stars.forEach(star => {
+        star.alpha += (Math.random() - 0.5) * 0.05;
+        star.alpha = Math.max(0.2, Math.min(1, star.alpha));
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+    });
+
+    // Space Tech grid guidelines (subtle)
+    ctx.strokeStyle = "rgba(40, 40, 80, 0.15)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= tileCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
+        ctx.stroke();
     }
 }
 
-function drawElements() {
-    // 1. Draw Apple
+function draw(progress) {
+    drawBackground();
+
+    // 1. Draw Space Apple (Glowing Plasma Core)
     const centerX = food.x * gridSize + gridSize / 2;
     const centerY = food.y * gridSize + gridSize / 2;
-    const radius = gridSize / 2.3;
-
+    
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#00E5FF";
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#E53935"; 
+    ctx.arc(centerX, centerY, gridSize / 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#00E5FF"; // Cyan space plasma apple
     ctx.fill();
+    ctx.shadowBlur = 0; // Reset glow filter
 
-    ctx.beginPath();
-    ctx.ellipse(centerX + 2, centerY - radius + 2, 4, 2, Math.PI / 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#388E3C";
-    ctx.fill();
-
-    // 2. Draw Snake
+    // 2. Draw Smooth Snake
     snake.forEach((cell, index) => {
-        const x = cell.x * gridSize;
-        const y = cell.y * gridSize;
+        // Calculate current position interpolated with forward path progress 
+        let currentX = cell.x;
+        let currentY = cell.y;
+
+        if (isPlaying) {
+            if (index === 0) {
+                // Animate head moving smoothly from old cell to next cell
+                currentX = (cell.x - dx) + (dx * progress);
+                currentY = (cell.y - dy) + (dy * progress);
+            } else {
+                // Body segments smoothly chase the segment ahead of them
+                const prevSegment = snake[index - 1];
+                currentX = cell.x + (prevSegment.x - cell.x) * (progress - 1);
+                currentY = cell.y + (prevSegment.y - cell.y) * (progress - 1);
+            }
+        }
+
+        const renderX = currentX * gridSize;
+        const renderY = currentY * gridSize;
         
         if (index === 0) {
-            ctx.fillStyle = "#3F51B5"; 
+            // Shiny Neon Cyan / Blue Alien Snake Head
+            ctx.fillStyle = "#7C4DFF"; 
             ctx.beginPath();
-            ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
+            ctx.arc(renderX + gridSize/2, renderY + gridSize/2, gridSize/2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Eyes follow direction
+            // Animated Eyes tracking direction
             ctx.fillStyle = "#FFF";
             let eyeX1, eyeY1, eyeX2, eyeY2;
             if (dx !== 0) { 
-                eyeX1 = x + gridSize/2 + (dx * 5); eyeY1 = y + 8;
-                eyeX2 = x + gridSize/2 + (dx * 5); eyeY2 = y + gridSize - 8;
+                eyeX1 = renderX + gridSize/2 + (dx * 5); eyeY1 = renderY + 8;
+                eyeX2 = renderX + gridSize/2 + (dx * 5); eyeY2 = renderY + gridSize - 8;
             } else { 
-                eyeX1 = x + 8; eyeY1 = y + gridSize/2 + (dy * 5);
-                eyeX2 = x + gridSize - 8; eyeY2 = y + gridSize/2 + (dy * 5);
+                eyeX1 = renderX + 8; eyeY1 = renderY + gridSize/2 + (dy * 5);
+                eyeX2 = renderX + gridSize - 8; eyeY2 = renderY + gridSize/2 + (dy * 5);
             }
             ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 4, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 4, 0, Math.PI * 2); ctx.fill();
@@ -248,20 +313,217 @@ function drawElements() {
             ctx.fillStyle = "#000"; 
             ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 2, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 2, 0, Math.PI * 2); ctx.fill();
-
         } else {
-            ctx.fillStyle = index % 2 === 0 ? "#4D5EC1" : "#5C6BC0"; 
-            const padding = 2; 
-            ctx.beginPath();
-            ctx.roundRect(x + padding, y + padding, gridSize - padding*2, gridSize - padding*2, 6);
-            ctx.fill();
-        }
+            // Neon glowing body segments
+            ctx.fillStyle = index % 2 === 0 ? "#651FFF" : "#7C4DFF"; 
+            const padding = 3; 
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreElement = document.getElementById("score");
+const highscoreElement = document.getElementById("highscore");
+const uiOverlay = document.getElementById("ui-overlay");
+const menuTitle = document.getElementById("menu-title");
+const menuText = document.getElementById("menu-text");
+const playBtn = document.getElementById("play-btn");
+
+const gridSize = 35; 
+const tileCount = canvas.width / gridSize;
+
+let snake = [];
+let food = { x: 0, y: 0 };
+let dx = 1, dy = 0;
+let nextDx = 1, nextDy = 0;
+let score = 0, highscore = 0;
+let isPlaying = false;
+
+// Logic timers & Smooth Animation states
+let lastLogicTime = 0;
+const logicInterval = 140; // Logic speed (ms per step)
+let stars = [];
+
+// Generate stars for the space background
+for(let i=0; i<40; i++) {
+    stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+        alpha: Math.random()
     });
 }
 
-function draw() {
-    drawGridBackground();
-    drawElements();
+resetGameData();
+generateFood();
+
+// Start standard Animation Frame handling loop (super smooth drawing)
+requestAnimationFrame(gameLoop);
+
+playBtn.addEventListener("click", handleMenuClick);
+
+function resetGameData() {
+    snake = [
+        { x: 5, y: 8 },
+        { x: 4, y: 8 },
+        { x: 3, y: 8 }
+    ];
+    dx = 1; dy = 0;
+    nextDx = 1; nextDy = 0;
+    score = 0;
+    scoreElement.innerText = score;
+}
+
+function handleMenuClick() {
+    uiOverlay.classList.add("hidden");
+    resetGameData();
+    generateFood();
+    isPlaying = true;
+    lastLogicTime = performance.now();
+}
+
+// Master loop running at monitor refresh rate (60fps/144fps+)
+function gameLoop(currentTime) {
+    requestAnimationFrame(gameLoop);
+
+    if (isPlaying) {
+        const elapsed = currentTime - lastLogicTime;
+        if (elapsed >= logicInterval) {
+            updateLogic();
+            lastLogicTime = currentTime - (elapsed % logicInterval);
+        }
+        // Pass progressive fraction calculation to draw step for liquid smoothing
+        const interpolationProgress = (currentTime - lastLogicTime) / logicInterval;
+        draw(interpolationProgress);
+    } else {
+        draw(0);
+    }
+}
+
+function updateLogic() {
+    dx = nextDx;
+    dy = nextDy;
+
+    const head = { x: snake.x + dx, y: snake.y + dy };
+    
+    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+        return gameOver();
+    }
+
+    for (let cell of snake) {
+        if (head.x === cell.x && head.y === cell.y) return gameOver();
+    }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+        score += 1; 
+        scoreElement.innerText = score;
+        if (score > highscore) {
+            highscore = score;
+            highscoreElement.innerText = highscore;
+        }
+        generateFood();
+    } else {
+        snake.pop(); 
+    }
+}
+
+function drawBackground() {
+    // Deep Space canvas background
+    ctx.fillStyle = "#050512";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Render shimmering stars
+    stars.forEach(star => {
+        star.alpha += (Math.random() - 0.5) * 0.05;
+        star.alpha = Math.max(0.2, Math.min(1, star.alpha));
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+    });
+
+    // Space Tech grid guidelines (subtle)
+    ctx.strokeStyle = "rgba(40, 40, 80, 0.15)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= tileCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
+        ctx.stroke();
+    }
+}
+
+function draw(progress) {
+    drawBackground();
+
+    // 1. Draw Space Apple (Glowing Plasma Core)
+    const centerX = food.x * gridSize + gridSize / 2;
+    const centerY = food.y * gridSize + gridSize / 2;
+    
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#00E5FF";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, gridSize / 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#00E5FF"; // Cyan space plasma apple
+    ctx.fill();
+    ctx.shadowBlur = 0; // Reset glow filter
+
+    // 2. Draw Smooth Snake
+    snake.forEach((cell, index) => {
+        // Calculate current position interpolated with forward path progress 
+        let currentX = cell.x;
+        let currentY = cell.y;
+
+        if (isPlaying) {
+            if (index === 0) {
+                // Animate head moving smoothly from old cell to next cell
+                currentX = (cell.x - dx) + (dx * progress);
+                currentY = (cell.y - dy) + (dy * progress);
+            } else {
+                // Body segments smoothly chase the segment ahead of them
+                const prevSegment = snake[index - 1];
+                currentX = cell.x + (prevSegment.x - cell.x) * (progress - 1);
+                currentY = cell.y + (prevSegment.y - cell.y) * (progress - 1);
+            }
+        }
+
+        const renderX = currentX * gridSize;
+        const renderY = currentY * gridSize;
+        
+        if (index === 0) {
+            // Shiny Neon Cyan / Blue Alien Snake Head
+            ctx.fillStyle = "#7C4DFF"; 
+            ctx.beginPath();
+            ctx.arc(renderX + gridSize/2, renderY + gridSize/2, gridSize/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Animated Eyes tracking direction
+            ctx.fillStyle = "#FFF";
+            let eyeX1, eyeY1, eyeX2, eyeY2;
+            if (dx !== 0) { 
+                eyeX1 = renderX + gridSize/2 + (dx * 5); eyeY1 = renderY + 8;
+                eyeX2 = renderX + gridSize/2 + (dx * 5); eyeY2 = renderY + gridSize - 8;
+            } else { 
+                eyeX1 = renderX + 8; eyeY1 = renderY + gridSize/2 + (dy * 5);
+                eyeX2 = renderX + gridSize - 8; eyeY2 = renderY + gridSize/2 + (dy * 5);
+            }
+            ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 4, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = "#000"; 
+            ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 2, 0, Math.PI * 2); ctx.fill();
+        } else {
+            // Neon glowing body segments
+            ctx.fillStyle = index % 2 === 0 ? "#651FFF" : "#7C4DFF"; 
+            const padding = 3; 
+            ctx.beginPath();
+            ctx.roundRect(renderX + padding, renderY + padding, gridSize - padding*2, gridSize - padding*2, 8);
+            ctx.fill();
+        }
+    });
 }
 
 function generateFood() {
@@ -281,27 +543,34 @@ function generateFood() {
 }
 
 function gameOver() {
-    clearInterval(gameInterval);
     isPlaying = false;
-    
-    menuTitle.innerText = "GAME OVER";
-    menuTitle.style.color = "#E53935";
-    menuText.innerText = `Final Score: ${score}`;
-    playBtn.innerText = "TRY AGAIN";
+    menuTitle.innerText = "MISSION FAILED";
+    menuTitle.style.color = "#FF1744";
+    menuText.innerText = `Final Cargo Collected: ${score}`;
+    playBtn.innerText = "RESPAWN";
     uiOverlay.classList.remove("hidden");
 }
 
+// Fixed directional map handlers binding WASD & ARROWS together smoothly
 window.addEventListener("keydown", e => {
     if (!isPlaying && (e.key === " " || e.key === "Enter")) {
         handleMenuClick();
         return;
     }
 
-    switch (e.key) {
-        case "ArrowUp":    if (dy !== 1)  { nextDx = 0; nextDy = -1; } break;
-        case "ArrowDown":  if (dy !== -1) { nextDx = 0; nextDy = 1; }  break;
-        case "ArrowLeft":  if (dx !== 1)  { nextDx = -1; nextDy = 0; } break;
-        case "ArrowRight": if (dx !== -1) { nextDx = 1; nextDy = 0; }  break;
+    switch (e.key.toLowerCase()) {
+        case "arrowup":
+        case "w":
+            if (dy !== 1)  { nextDx = 0; nextDy = -1; } break;
+        case "arrowdown":
+        case "s":
+            if (dy !== -1) { nextDx = 0; nextDy = 1; }  break;
+        case "arrowleft":
+        case "a":
+            if (dx !== 1)  { nextDx = -1; nextDy = 0; } break;
+        case "arrowright":
+        case "d":
+            if (dx !== -1) { nextDx = 1; nextDy = 0; }  break;
     }
 });
 </script>
