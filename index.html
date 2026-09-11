@@ -200,6 +200,7 @@ function updateLogic() {
     dx = nextDx;
     dy = nextDy;
 
+    // FIX: Look at the snake array's first item [0] to track the head correctly
     const head = { x: snake[0].x + dx, y: snake[0].y + dy };
     
     if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
