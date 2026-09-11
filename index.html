@@ -11,7 +11,7 @@
             align-items: center; 
             justify-content: center; 
             height: 100vh; 
-            background: #4A752C; /* Google Snake dark green grass border background */
+            background: #4A752C; 
             color: #fff; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0; 
@@ -41,12 +41,12 @@
             gap: 10px;
         }
         canvas { 
-            background: #A2D149; /* Google Snake bright checkered grass color */
+            background: #A2D149; 
             display: block;
         }
         #ui-overlay {
             position: absolute;
-            top: 50px; /* Below top bar */
+            top: 50px; 
             left: 0;
             width: 560px;
             height: 560px;
@@ -62,10 +62,11 @@
             display: none;
         }
         #ui-overlay h1 {
-            font-size: 48px;
+            font-size: 40px;
             margin: 0 0 10px 0;
-            color: #FF5722;
+            color: #fff;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
         }
         #ui-overlay p {
             font-size: 20px;
@@ -95,7 +96,6 @@
 <body>
 
     <div id="game-container">
-        <!-- Top bar for keeping track of score visually -->
         <div id="top-bar">
             <div class="ui-element">🍎 <span id="score">0</span></div>
             <div class="ui-element">🏆 <span id="highscore">0</span></div>
@@ -103,11 +103,10 @@
 
         <canvas id="gameCanvas" width="560" height="560"></canvas>
 
-        <!-- Built-in Overlay Screen instead of alerts -->
         <div id="ui-overlay">
-            <h1 id="menu-title">SNAKE</h1>
-            <p id="menu-text">Press the button or spacebar to play</p>
-            <button id="play-btn" onclick="handleMenuClick()">PLAY</button>
+            <h1 id="menu-title">290045's Snake Game</h1>
+            <p id="menu-text">Press PLAY or Spacebar</p>
+            <button id="play-btn">PLAY</button>
         </div>
     </div>
 
@@ -121,7 +120,7 @@ const menuTitle = document.getElementById("menu-title");
 const menuText = document.getElementById("menu-text");
 const playBtn = document.getElementById("play-btn");
 
-const gridSize = 35; // Perfect sizing for Google-like checkered board
+const gridSize = 35; 
 const tileCount = canvas.width / gridSize;
 
 let snake = [];
@@ -135,10 +134,13 @@ let highscore = 0;
 let gameInterval;
 let isPlaying = false;
 
-// Initialization
+// Setup initial layout smoothly without crashing active states
 resetGameData();
-drawGridBackground(); 
-drawElements();
+generateFood();
+draw();
+
+// Connect button click event properly
+playBtn.addEventListener("click", handleMenuClick);
 
 function resetGameData() {
     snake = [
@@ -155,12 +157,12 @@ function resetGameData() {
 function handleMenuClick() {
     uiOverlay.classList.add("hidden");
     resetGameData();
+    generateFood();
     isPlaying = true;
-    gameInterval = setInterval(update, 130); // Dynamic pacing speed
+    gameInterval = setInterval(update, 130); 
 }
 
 function update() {
-    // Lock direction changes per tick to prevent instant self-collision
     dx = nextDx;
     dy = nextDy;
 
@@ -176,12 +178,11 @@ function update() {
         if (head.x === cell.x && head.y === cell.y) return gameOver();
     }
 
-    // Add new head to movement chain
     snake.unshift(head);
 
     // Check Food Collision
     if (head.x === food.x && head.y === food.y) {
-        score += 1; // Explicitly goes up by exactly one point
+        score += 1; 
         scoreElement.innerText = score;
         if (score > highscore) {
             highscore = score;
@@ -198,7 +199,6 @@ function update() {
 function drawGridBackground() {
     for (let r = 0; r < tileCount; r++) {
         for (let c = 0; c < tileCount; c++) {
-            // Generates the famous Google Snake light/dark checkered grid
             ctx.fillStyle = (r + c) % 2 === 0 ? "#AAD751" : "#A2D149";
             ctx.fillRect(c * gridSize, r * gridSize, gridSize, gridSize);
         }
@@ -206,56 +206,52 @@ function drawGridBackground() {
 }
 
 function drawElements() {
-    // 1. Draw Apple realistically (Circle, shading, leaf stems)
+    // 1. Draw Apple
     const centerX = food.x * gridSize + gridSize / 2;
     const centerY = food.y * gridSize + gridSize / 2;
     const radius = gridSize / 2.3;
 
-    // Apple Body Shadow & Depth
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fillStyle = "#E53935"; 
     ctx.fill();
 
-    // Apple Leaf stem
     ctx.beginPath();
     ctx.ellipse(centerX + 2, centerY - radius + 2, 4, 2, Math.PI / 4, 0, Math.PI * 2);
     ctx.fillStyle = "#388E3C";
     ctx.fill();
 
-    // 2. Draw Realistic Snake (Rounded head, detailed body sections, eyes)
+    // 2. Draw Snake
     snake.forEach((cell, index) => {
         const x = cell.x * gridSize;
         const y = cell.y * gridSize;
         
         if (index === 0) {
-            // Draw smooth rounded Snake Head
-            ctx.fillStyle = "#3F51B5"; // Sleek dynamic blue/teal color option
+            ctx.fillStyle = "#3F51B5"; 
             ctx.beginPath();
             ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Render Google style Googly Eyes based on travel velocity direction
+            // Eyes follow direction
             ctx.fillStyle = "#FFF";
             let eyeX1, eyeY1, eyeX2, eyeY2;
-            if (dx !== 0) { // Horizontal movement eyes layout
+            if (dx !== 0) { 
                 eyeX1 = x + gridSize/2 + (dx * 5); eyeY1 = y + 8;
                 eyeX2 = x + gridSize/2 + (dx * 5); eyeY2 = y + gridSize - 8;
-            } else { // Vertical movement eyes layout
+            } else { 
                 eyeX1 = x + 8; eyeY1 = y + gridSize/2 + (dy * 5);
                 eyeX2 = x + gridSize - 8; eyeY2 = y + gridSize/2 + (dy * 5);
             }
             ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 4, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 4, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = "#000"; // Pupils
+            ctx.fillStyle = "#000"; 
             ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 2, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 2, 0, Math.PI * 2); ctx.fill();
 
         } else {
-            // Draw Snake Body with scaling dynamic gradient textures 
             ctx.fillStyle = index % 2 === 0 ? "#4D5EC1" : "#5C6BC0"; 
-            const padding = 2; // Sleek spacing lines
+            const padding = 2; 
             ctx.beginPath();
             ctx.roundRect(x + padding, y + padding, gridSize - padding*2, gridSize - padding*2, 6);
             ctx.fill();
@@ -274,7 +270,6 @@ function generateFood() {
         food.x = Math.floor(Math.random() * tileCount);
         food.y = Math.floor(Math.random() * tileCount);
         
-        // Ensure apple doesn't spawn inside snake body cells
         validPosition = true;
         for (let cell of snake) {
             if (cell.x === food.x && cell.y === food.y) {
@@ -289,7 +284,6 @@ function gameOver() {
     clearInterval(gameInterval);
     isPlaying = false;
     
-    // Smoothly re-enable Built-In Menu screen UI
     menuTitle.innerText = "GAME OVER";
     menuTitle.style.color = "#E53935";
     menuText.innerText = `Final Score: ${score}`;
@@ -297,7 +291,6 @@ function gameOver() {
     uiOverlay.classList.remove("hidden");
 }
 
-// Controls configuration
 window.addEventListener("keydown", e => {
     if (!isPlaying && (e.key === " " || e.key === "Enter")) {
         handleMenuClick();
@@ -311,5 +304,6 @@ window.addEventListener("keydown", e => {
         case "ArrowRight": if (dx !== -1) { nextDx = 1; nextDy = 0; }  break;
     }
 });
-
-generateFood();
+</script>
+</body>
+</html>
