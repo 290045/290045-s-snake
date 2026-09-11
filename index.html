@@ -200,7 +200,7 @@ function updateLogic() {
     dx = nextDx;
     dy = nextDy;
 
-    // FIX: Must use snake[0] to get the head's position
+    // The [0] tells JavaScript to look at the very front segment (the head)
     const head = { x: snake[0].x + dx, y: snake[0].y + dy };
     
     if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
